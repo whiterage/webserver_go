@@ -23,21 +23,6 @@ type Service struct {
 	checker Checker
 }
 
-/*
-В сервисе реализуем методы:
-CreateTask(ctx context.Context, links []string) (string, error)
-GetTask(id string) (*models.Task, error)
-Enqueue(task *models.Task) — внутренний.
-CreateTask:
-генерирует ID (можно использовать uuid.NewString() — добавь зависимость github.com/google/uuid).
-создаёт models.Task со статусом pending, пустыми результатами.
-сохраняет в репо.
-отправляет в очередь (пока очередь без обработчика — подключим позже).
-возвращает ID.
-GetTask:
-обращается к репо; если нет — ErrTaskNotFound.
-В NewService создай очередь make(chan *models.Task, queueSize). */
-
 func NewService(repo *repository.MemoryRepo, checker Checker, queueSize int) *Service {
 	if queueSize <= 0 {
 		queueSize = 10
