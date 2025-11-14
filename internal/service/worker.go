@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/whiterage/14-11-2025/pkg/clock"
 	"github.com/whiterage/14-11-2025/pkg/models"
 )
 
@@ -67,7 +67,7 @@ func (wp *WorkerPool) processTask(ctx context.Context, task *models.Task) {
 		resolvedURL, err := normalizeURL(task.Results[i].URL)
 		if err != nil {
 			task.Results[i].Status = models.StatusNotAvailable
-			task.Results[i].CheckTime = time.Now().UTC()
+			task.Results[i].CheckTime = clock.Now()
 			continue
 		}
 

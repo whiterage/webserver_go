@@ -1,0 +1,21 @@
+cd /Users/zahar/it/14-11-2025
+
+
+go mod tidy
+
+go test ./...
+
+go build ./cmd/server
+
+go run ./cmd/server
+
+curl -i http://localhost:8080/
+curl -i -X POST http://localhost:8080/links \
+  -H "Content-Type: application/json" \
+  -d '{"links":["google.com","malformedlink.gg"]}'
+curl -i http://localhost:8080/links/1
+curl -X POST http://localhost:8080/links_list \
+  -H "Content-Type: application/json" \
+  -d '{"links_list":[1]}' \
+  -o report.pdf
+open report.pdf  # macOS

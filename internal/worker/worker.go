@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/whiterage/14-11-2025/pkg/clock"
 	"github.com/whiterage/14-11-2025/pkg/models"
 )
 
@@ -36,6 +37,6 @@ func (c *HTTPChecker) Check(ctx context.Context, url string) models.LinkStatus {
 	return models.LinkStatus{
 		URL:       url,
 		Status:    status,
-		CheckTime: time.Now().UTC(),
+		CheckTime: clock.Now(),
 	}
 }

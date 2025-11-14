@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/whiterage/14-11-2025/internal/repository"
+	"github.com/whiterage/14-11-2025/pkg/clock"
 	"github.com/whiterage/14-11-2025/pkg/models"
 	"github.com/whiterage/14-11-2025/pkg/pdf"
 )
@@ -71,7 +72,7 @@ func (s *Service) CreateTask(ctx context.Context, links []string) (int, error) {
 
 	task := &models.Task{
 		ID:        s.nextTaskID(),
-		CreatedAt: time.Now().UTC(),
+		CreatedAt: clock.Now(),
 		Status:    models.StatusPending,
 		Results:   make([]models.LinkStatus, len(links)),
 	}

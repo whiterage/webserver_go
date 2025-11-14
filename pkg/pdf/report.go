@@ -7,6 +7,7 @@ import (
 
 	"github.com/jung-kurt/gofpdf"
 
+	"github.com/whiterage/14-11-2025/pkg/clock"
 	"github.com/whiterage/14-11-2025/pkg/models"
 )
 
@@ -21,7 +22,7 @@ func BuildReport(tasks []*models.Task) ([]byte, error) {
 	doc.Ln(8)
 
 	doc.SetFont("Arial", "", 11)
-	doc.Cell(0, 6, fmt.Sprintf("Generated at: %s", time.Now().UTC().Format(time.RFC3339)))
+	doc.Cell(0, 6, fmt.Sprintf("Generated at: %s", clock.Now().Format(time.RFC3339)))
 	doc.Ln(10)
 
 	for _, task := range tasks {
