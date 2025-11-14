@@ -11,42 +11,44 @@
 
 ## Запуск
 ```bash
-git clone git@github.com:whiterage/webserver_go.git
-cd webserver_go
+git clone git@github.com:whiterage/14-11-2025.git
+cd 14-11-2025
 go run ./cmd/server
 ```
 По умолчанию сервер слушает `http://localhost:8080`.
 
 ## Контрольный чек-лист (ручной прогон)
-```bash
-# 1. Юнит-тесты
+# 1. Зависимости
+go mod tidy
+
+# 2. Юнит-тесты
 go test ./...
 
-# 2. Сборка бинаря
+# 3. Сборка бинаря
 go build ./cmd/server
 
-# 3. Запуск сервера (оставить в отдельном окне)
+# 4. Запуск сервера (оставить в отдельном окне)
 go run ./cmd/server
 
-# 4. Health-check
+# 5. Health-check
 curl -i http://localhost:8080/
 
-# 5. Создание задачи со списком ссылок
+# 6. Создание задачи со списком ссылок
 curl -i -X POST http://localhost:8080/links \
   -H "Content-Type: application/json" \
   -d '{"links":["google.com","malformedlink.gg"]}'
 
-# 6. Проверка статуса по links_num
+# 7. Проверка статуса по links_num
 curl -i http://localhost:8080/links/1
 
-# 7. Получение PDF-отчёта
+# 8. Получение PDF-отчёта
 curl -X POST http://localhost:8080/links_list \
   -H "Content-Type: application/json" \
   -d '{"links_list":[1]}' \
   -o report.pdf
 open report.pdf  # macOS
 
-# 8. Graceful shutdown (в окне сервера)
+# 9. Graceful shutdown (в окне сервера)
 Ctrl+C
 ```
 
@@ -97,7 +99,9 @@ response: application/pdf (attachment)
 - **Пул воркеров**: размер задаётся в `cmd/server/main.go` (по умолчанию 4).
 - **HTTPChecker** нормализует URL (добавляет `https://`, отбрасывает заведомо некорректные).
 - **PDF отчёт**: включает заголовки, дату генерации, таблицы со ссылками, статусами и временем проверки.
-- **Тесты**: базовые юнит‑тесты для вспомогательных функций (normalization, buildLinksMap). Команда запуска — `go test ./...`.
+- **Персистентность**: задания и их статусы хранятся в `storage/tasks.json` (путь можно переопределить через `TASK_STORAGE_PATH`). При рестарте сервиса незавершённые задачи автоматически перезапускаются.
+- **Graceful shutdown**: при `SIGINT/SIGTERM` сервер сначала завершает обработку HTTP‑запросов, затем ожидает, пока воркеры опустошат очередь задач; если лимит по времени превышен, воркеры принудительно отменяются.
+- **Тесты**: помимо вспомогательных функций покрыта логика нормализации URL и работы с репозиторием. Команда запуска — `go test ./...`.
 
 ## Потенциальные улучшения
 - Персистентное хранилище (SQLite/Postgres) для сохранения задач между перезапусками.

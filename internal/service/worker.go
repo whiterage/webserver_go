@@ -15,7 +15,7 @@ type WorkerPool struct {
 	service *Service
 	workers int
 	wg      sync.WaitGroup
-	stop    chan struct{}
+	cancel  context.CancelFunc
 }
 
 func NewWorkerPool(service *Service, workers int) *WorkerPool {
@@ -25,14 +25,15 @@ func NewWorkerPool(service *Service, workers int) *WorkerPool {
 	return &WorkerPool{
 		service: service,
 		workers: workers,
-		stop:    make(chan struct{}),
 	}
 }
 
 func (wp *WorkerPool) Start(ctx context.Context) {
+	workerCtx, cancel := context.WithCancel(ctx)
+	wp.cancel = cancel
 	for i := 0; i < wp.workers; i++ {
 		wp.wg.Add(1)
-		go wp.workerLoop(ctx)
+		go wp.workerLoop(workerCtx)
 	}
 }
 
@@ -42,8 +43,6 @@ func (wp *WorkerPool) workerLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-wp.stop:
 			return
 		case task, ok := <-wp.service.queue:
 			if !ok {
@@ -82,7 +81,13 @@ func (wp *WorkerPool) processTask(ctx context.Context, task *models.Task) {
 }
 
 func (wp *WorkerPool) Stop() {
-	close(wp.stop)
+	if wp.cancel != nil {
+		wp.cancel()
+	}
+	wp.wg.Wait()
+}
+
+func (wp *WorkerPool) Wait() {
 	wp.wg.Wait()
 }
 

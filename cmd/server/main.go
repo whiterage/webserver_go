@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,7 +17,16 @@ import (
 )
 
 func main() {
-	repo := repository.NewMemoryRepo()
+	storagePath := os.Getenv("TASK_STORAGE_PATH")
+	if storagePath == "" {
+		storagePath = filepath.Join("storage", "tasks.json")
+	}
+
+	repo, err := repository.NewPersistentRepo(storagePath)
+	if err != nil {
+		log.Fatalf("init repository: %v", err)
+	}
+
 	checker := worker.NewHTTPChecker(5 * time.Second)
 	svc := service.NewService(repo, checker, 20)
 	pool := service.NewWorkerPool(svc, 4)
@@ -31,7 +41,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool.Start(ctx)
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+
+	pool.Start(workerCtx)
 
 	handlers.Register(mux)
 
@@ -45,16 +58,30 @@ func main() {
 
 	<-ctx.Done()
 
-	log.Println("shutdown: stopping server...")
+	log.Println("shutdown: stopping http server...")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Printf("shutdown error: %v", err)
 	}
 
-	pool.Stop()
+	// prevent new tasks and let workers drain current queue
+	svc.CloseQueue()
+
+	done := make(chan struct{})
+	go func() {
+		pool.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-shutdownCtx.Done():
+		log.Println("shutdown: timeout exceeded, forcing workers to stop")
+		pool.Stop()
+	}
 
 	log.Println("shutdown: complete")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/whiterage/14-11-2025/internal/repository"
@@ -26,6 +27,8 @@ type Service struct {
 	checker Checker
 	mu      sync.Mutex
 	nextID  int
+	closed  atomic.Bool
+	closeW  sync.Once
 }
 
 func NewService(repo *repository.MemoryRepo, checker Checker, queueSize int) *Service {
@@ -33,17 +36,37 @@ func NewService(repo *repository.MemoryRepo, checker Checker, queueSize int) *Se
 		queueSize = 10
 	}
 
-	return &Service{
+	pending := repo.PendingTasks()
+	if len(pending) > queueSize {
+		queueSize = len(pending) + 5
+	}
+
+	s := &Service{
 		repo:    repo,
 		queue:   make(chan *models.Task, queueSize),
 		checker: checker,
-		nextID:  1,
+		nextID:  repo.MaxID() + 1,
 	}
+
+	if s.nextID <= 1 {
+		s.nextID = 1
+	}
+
+	for _, task := range pending {
+		resetStalledTask(task)
+		repo.Save(task)
+		s.queue <- task
+	}
+
+	return s
 }
 
 func (s *Service) CreateTask(ctx context.Context, links []string) (int, error) {
 	if len(links) == 0 {
 		return 0, ErrEmptyLinks
+	}
+	if s.closed.Load() {
+		return 0, errors.New("service is shutting down")
 	}
 
 	task := &models.Task{
@@ -103,4 +126,25 @@ func (s *Service) nextTaskID() int {
 	id := s.nextID
 	s.nextID++
 	return id
+}
+
+func (s *Service) CloseQueue() {
+	s.closeW.Do(func() {
+		s.closed.Store(true)
+		close(s.queue)
+	})
+}
+
+func resetStalledTask(task *models.Task) {
+	if task.Status == models.StatusDone {
+		return
+	}
+
+	task.Status = models.StatusPending
+	for i := range task.Results {
+		if task.Results[i].Status == models.StatusProcessing {
+			task.Results[i].Status = models.StatusPending
+			task.Results[i].CheckTime = time.Time{}
+		}
+	}
 }
